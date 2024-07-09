@@ -5,10 +5,11 @@ import time
 import pybullet_data
 
 resolution = 128
+
 def useKeyboard():
     inputs = p.getKeyboardEvents()
     if p.B3G_RETURN in inputs:
-        controlPI(0,5)
+        controlPID(5,5)
     if p.B3G_DELETE in inputs:
         getCenterDepth()
     if p.B3G_LEFT_ARROW in inputs:
@@ -24,6 +25,7 @@ def useKeyboard():
 
 
 pmat = p.computeProjectionMatrixFOV(fov=120, aspect=(128 / 128), nearVal=0.01, farVal=20)
+
 # vmat = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[0,0,1], distance=2, yaw=0, pitch=0, roll=0, upAxisIndex=2)
 
 def cameraDisp():
@@ -47,37 +49,76 @@ def cameraDisp():
 
 def getCenterDepth():
     _,_,_,dep_map,_ = cameraDisp()
-    print(dep_map) #[int((resolution**2)/2)]
+    print(dep_map[int((resolution**2)/2)]) 
 
+def controlPID(xtar, ytar):
+    erraccum_lin = 0
+    erraccum_ang = 0
+    kp_l = 50 #50
+    ki_l = 0.00
+    kd_l = 0.0
+    kp_a = 1000
+    ki_a = 0.0
+    kd_a = 0
 
-def controlPI(xtar, ytar):
-    erraccum = 0
-    kp = 100
-    ki = 0.001
-    kd = 0.0
-    curpos, _,_, _, _, _  = p.getLinkState(robot,13, computeForwardKinematics=True)
+    curpos, curorn = p.getBasePositionAndOrientation(robot)
+    rot_matrix = p.getMatrixFromQuaternion(curorn)
+    rot_matrix = np.array(rot_matrix).reshape(3, 3)
+    y_head = rot_matrix[:,1]
+    theta = np.arccos(y_head.dot([1,0,0]))
+    if y_head[1] < 0:
+        theta = -theta
     x,y,z = curpos
-    err = ytar - y
-    erraccum += err
-    perr = err  #previous err
-    derr = 0    #err delta
-    print(err)
-    while abs(err) > 0.05 or abs(derr) > 0.001:
-        print("Error:",err, " Acum Err:",erraccum, " D Err:", derr)
-        p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=4*[-kp*err - ki*erraccum - kd*derr],forces = [3]*4)
+
+    theta_tar = np.arctan2((ytar-y),(xtar-x))
+
+    err_lin = ((ytar - y)**2 + (xtar - x)**2)**0.5
+    err_ang = theta_tar - theta
+    erraccum_lin += err_lin
+    erraccum_ang += err_ang
+    perr_lin = err_lin  #previous err
+    perr_ang = err_ang
+    derr_lin = 0    #Linear err delta
+    derr_ang = 0
+    
+    while abs(err_lin) > 0.05 or abs(derr_lin) > 0.001:
+        # print("Error:",err_ang, " Acum Err:",erraccum_ang, " D Err:", derr_ang)
+        
+        v = -kp_l*err_lin - ki_l*erraccum_lin - kd_l*derr_lin
+        w = -kp_a*err_ang - ki_a*erraccum_ang - kd_a*derr_ang
+        # print("Left Vel:", v-0.22*w, "  Right Vel:", v+0.22*w)
+        # print("tar vel: ", v, " tar angvel", w)
+        p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=[v+0.22*w,v+0.22*w,v-0.22*w,v-0.22*w],forces = [3]*4)
         p.stepSimulation()
         time.sleep(1./240.)
-        curpos, _,_, _, _, _  = p.getLinkState(robot,13, computeForwardKinematics=True)
+
+        curpos, curorn = p.getBasePositionAndOrientation(robot)
+        rot_matrix = p.getMatrixFromQuaternion(curorn)
+        rot_matrix = np.array(rot_matrix).reshape(3, 3)
+        y_head = rot_matrix[:,1]
+        if v > 0:
+            y_head[1] = -y_head[1]
+        theta = np.arccos(y_head.dot([1,0,0]))
+        if y_head[1] < 0:
+            theta = -theta
         x,y,z = curpos
-        err = ytar - y
-        erraccum += err
-        derr = err - perr
-        perr = err
+        print(theta)
+
+        theta_tar = np.arctan2((ytar-y),(xtar-x))
+        # print(theta_tar)
+        err_lin = ((ytar - y)**2 + (xtar - x)**2)**0.5
+        err_ang = theta_tar - theta
+        erraccum_lin += err_lin
+        erraccum_ang += err_ang
+        derr_lin = err_lin - perr_lin
+        derr_ang = err_ang - perr_ang
+        perr_lin = err_lin
+        perr_ang = err_ang
+
         cameraDisp()
 
     p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=4*[0],forces = [5]*4)
-
-    
+    print("DONE, Curpos:", curpos)
 
 
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
@@ -89,7 +130,7 @@ startOrientation = p.getQuaternionFromEuler([0,0,0])
 robot = p.loadURDF("r2d2.urdf",startPos, startOrientation)
 
 # Cylindar code
-shift = [0, 5, 0]
+shift = [5, 5, 0]
 meshScale = [0.1, 0.1, 0.1]
 visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER,
                                     visualFramePosition=shift,
@@ -113,6 +154,11 @@ for i in range(num_joints):
     print()
 # p.setJointMotorControlArray(robot, [13], p.VELOCITY_CONTROL, targetVelocities=[5],forces = [5])
 
+for i in [2,3,6,7]:
+    pos, _, _, _, _, _ = p.getLinkState(robot, i, computeForwardKinematics=True)
+    print("Position of link:", i, " ", pos)
+
+
 # set the center of mass frame (loadURDF sets base link frame) startPos/Ornp.resetBasePositionAndOrientation(boxId, startPos, startOrientation)
 time.sleep(0.5)
 for i in range (10000):
@@ -121,10 +167,4 @@ for i in range (10000):
     cameraDisp()
     time.sleep(1./240.)
 
-
-
-
-# 
 p.disconnect()
-
-
