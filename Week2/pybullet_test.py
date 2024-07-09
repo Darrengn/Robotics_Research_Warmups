@@ -8,8 +8,11 @@ resolution = 128
 
 def useKeyboard():
     inputs = p.getKeyboardEvents()
+    if ord('q') in inputs:
+        followLine(1,1,3)
+    
     if p.B3G_RETURN in inputs:
-        controlPID(5,5)
+        moveToPoint(-2,0)
     if p.B3G_DELETE in inputs:
         getCenterDepth()
     if p.B3G_LEFT_ARROW in inputs:
@@ -51,7 +54,15 @@ def getCenterDepth():
     _,_,_,dep_map,_ = cameraDisp()
     print(dep_map[int((resolution**2)/2)]) 
 
-def controlPID(xtar, ytar):
+def calcAngleErr(tar, theta):
+    err_ang = tar - theta 
+    if abs(err_ang) > np.pi:
+        err_ang = abs(err_ang) - 2*np.pi
+        if tar < 0:
+            err_ang = -err_ang
+    return err_ang
+
+def moveToPoint(xtar, ytar):
     erraccum_lin = 0
     erraccum_ang = 0
     kp_l = 50 #50
@@ -66,6 +77,7 @@ def controlPID(xtar, ytar):
     rot_matrix = np.array(rot_matrix).reshape(3, 3)
     y_head = rot_matrix[:,1]
     theta = np.arccos(y_head.dot([1,0,0]))
+
     if y_head[1] < 0:
         theta = -theta
     x,y,z = curpos
@@ -73,7 +85,8 @@ def controlPID(xtar, ytar):
     theta_tar = np.arctan2((ytar-y),(xtar-x))
 
     err_lin = ((ytar - y)**2 + (xtar - x)**2)**0.5
-    err_ang = theta_tar - theta
+    err_ang = calcAngleErr(theta_tar,theta)
+
     erraccum_lin += err_lin
     erraccum_ang += err_ang
     perr_lin = err_lin  #previous err
@@ -99,15 +112,16 @@ def controlPID(xtar, ytar):
         if v > 0:
             y_head[1] = -y_head[1]
         theta = np.arccos(y_head.dot([1,0,0]))
+
         if y_head[1] < 0:
             theta = -theta
         x,y,z = curpos
-        print(theta)
 
         theta_tar = np.arctan2((ytar-y),(xtar-x))
         # print(theta_tar)
         err_lin = ((ytar - y)**2 + (xtar - x)**2)**0.5
-        err_ang = theta_tar - theta
+        err_ang = calcAngleErr(theta_tar,theta)
+
         erraccum_lin += err_lin
         erraccum_ang += err_ang
         derr_lin = err_lin - perr_lin
@@ -120,6 +134,38 @@ def controlPID(xtar, ytar):
     p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=4*[0],forces = [5]*4)
     print("DONE, Curpos:", curpos)
 
+# where the line is ax + by + c = 0
+def followLine(a, b, c):
+    kd = 1000   #distance const
+    kh = 1000   #heading const
+    while(True):
+        inputs = p.getKeyboardEvents()
+        if ord('e') in inputs:
+            break
+        curpos, curorn = p.getBasePositionAndOrientation(robot)
+        rot_matrix = p.getMatrixFromQuaternion(curorn)
+        rot_matrix = np.array(rot_matrix).reshape(3, 3)
+        y_head = rot_matrix[:,1]
+        theta = np.arccos(y_head.dot([1,0,0]))
+        theta_tar = np.arctan2(-a,b)
+
+        if y_head[1] < 0:
+            theta = -theta
+        x,y,z = curpos
+        line = np.array([a,b,c])
+        curpos = np.array([x,y,1])
+        lin_dist = line.dot(curpos)/(a**2 + b**2)**0.5
+        ang_err = calcAngleErr(theta_tar,theta)
+        
+        gamma = kd*lin_dist - kh * ang_err
+        # w = np.tan(gamma)
+        w = gamma
+        print(ang_err)
+        
+        v = -40
+        p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=[v+0.22*w,v+0.22*w,v-0.22*w,v-0.22*w],forces = [3]*4)
+        p.stepSimulation()
+        time.sleep(1./240.)
 
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
@@ -130,7 +176,7 @@ startOrientation = p.getQuaternionFromEuler([0,0,0])
 robot = p.loadURDF("r2d2.urdf",startPos, startOrientation)
 
 # Cylindar code
-shift = [5, 5, 0]
+shift = [-5, -5, 0]
 meshScale = [0.1, 0.1, 0.1]
 visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER,
                                     visualFramePosition=shift,
@@ -154,11 +200,11 @@ for i in range(num_joints):
     print()
 # p.setJointMotorControlArray(robot, [13], p.VELOCITY_CONTROL, targetVelocities=[5],forces = [5])
 
-for i in [2,3,6,7]:
-    pos, _, _, _, _, _ = p.getLinkState(robot, i, computeForwardKinematics=True)
-    print("Position of link:", i, " ", pos)
+# for i in [2,3,6,7]:
+#     pos, _, _, _, _, _ = p.getLinkState(robot, i, computeForwardKinematics=True)
+#     print("Position of link:", i, " ", pos)
 
-
+p.addUserDebugLine([7,-10,0],[-10,7,0],[1,0,0],lineWidth = 5)
 # set the center of mass frame (loadURDF sets base link frame) startPos/Ornp.resetBasePositionAndOrientation(boxId, startPos, startOrientation)
 time.sleep(0.5)
 for i in range (10000):
