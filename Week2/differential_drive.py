@@ -66,7 +66,7 @@ def calcAngleErr(tar, theta):
 def moveToPoint(xtar, ytar):
     erraccum_lin = 0
     erraccum_ang = 0
-    kp_l = 100 #50
+    kp_l = 50 #50
     ki_l = 0
     kd_l = 0.0
     kp_a = 2000
@@ -168,7 +168,7 @@ def moveToPose(xtar, ytar, end_ang):
     # err_ang = calcAngleErr(theta_tar,theta)
     err_ang = calcAngleErr(end_ang,theta)
     
-    while abs(err) > 0.1 or abs(err_ang) > 0.03:
+    while abs(err) > 0.1 or abs(err_ang) > 0.3:
         # print("Error:",err_ang, " Acum Err:",erraccum_ang, " D Err:", derr_ang)
         
         v = -kp*err
@@ -215,8 +215,8 @@ def moveToPose(xtar, ytar, end_ang):
 
 # where the line is ax + by + c = 0
 def followLine(a, b, c):
-    kd = 500   #distance const
-    kh = 1000   #heading const
+    kd = 250   #distance const
+    kh = 500   #heading const
     while(True):
         inputs = p.getKeyboardEvents()
         cameraDisp()
@@ -240,7 +240,7 @@ def followLine(a, b, c):
         gamma = kd*lin_dist - kh * ang_err
         # w = np.tan(gamma)
         w = gamma
-        print(ang_err)
+        
         
         v = -60
         p.setJointMotorControlArray(robot, [2,3,6,7], p.VELOCITY_CONTROL, targetVelocities=[v+0.22*w,v+0.22*w,v-0.22*w,v-0.22*w],forces = [3]*4)
@@ -285,6 +285,8 @@ for i in range(num_joints):
 #     print("Position of link:", i, " ", pos)
 
 p.addUserDebugLine([7,-10,0],[-10,7,0],[1,0,0],lineWidth = 5)
+p.addUserDebugPoints([[3,3,0]], [[1,0,0]],pointSize=10)
+
 # set the center of mass frame (loadURDF sets base link frame) startPos/Ornp.resetBasePositionAndOrientation(boxId, startPos, startOrientation)
 time.sleep(0.5)
 for i in range (10000):
