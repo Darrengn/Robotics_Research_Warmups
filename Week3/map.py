@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
-vals = np.ones((100,100)) * 0.5
-visits = np.zeros((100,100))
+vals = np.zeros((100,100))
+
 
 def calcAngle(tar, theta):
     err_ang = tar + theta 
@@ -27,6 +28,10 @@ def updateMap(x, y, theta, data):
     for i in range(100):
         for j in range(100):
             cell = (i/10 - 5, j/10 - 5)
+            #if occuping cell, add large positive
+            if abs(x - cell[0]) <= 0.05 and abs(y - cell[1]) <= 0.05:
+                vals[i,j] += 10
+
             ang_to_cell = np.arctan2(cell[1] - y, cell[0] - x)
             dist = ((cell[0] - x)**2+(cell[1] - y)**2)**0.5
             #if cell is in fov
@@ -36,10 +41,9 @@ def updateMap(x, y, theta, data):
                 ray = np.argmin(raydist)
                 if float(data[ray]) != 2.0:
                     if float(data[ray]) > dist:
-                        vals[i,j] += 1
-                        visits[i,j] += 1
+                        vals[i,j] += 2.2
                     elif abs(float(data[ray]) - dist) <= 0.05:
-                        visits[i,j] += 1
+                        vals[i,j] -= 2.2
 
 
 
@@ -58,10 +62,7 @@ with open('OGM_Dataset.txt', 'r') as file:
 map = np.zeros((100,100))
 for i in range(100):
     for j in range(100):
-        if visits[i,j] == 0:
-            map[i,j] = 0.5
-        else:
-            map[i,j] = vals[i,j]/visits[i,j]
+        map[i,j] = 1 - 1/(1 + math.exp(vals[i,j]))
 
 plt.imshow(map,cmap='gray', vmin=0, vmax=1)
 plt.show()
