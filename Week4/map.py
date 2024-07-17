@@ -32,7 +32,7 @@ def updateMap(x, y, theta, data, count):
             cell = (i/10 - 5, j/10 - 5)
 
             #if occuping cell, add large positive
-            if abs(x - cell[0]) <= 0.05 and abs(y - cell[1]) <= 0.05:
+            if abs(x - cell[0]) <= 0.05 and abs(y - cell[1]) <= 0.07:
                 vals[i,j] += 5
 
             ang_to_cell = np.arctan2(cell[1] - y, cell[0] - x)
@@ -43,7 +43,6 @@ def updateMap(x, y, theta, data, count):
                 raydist = [x-ang_to_cell for x in rays]
                 raydist = [abs(x) for x in raydist]
                 ray = np.argmin(raydist)
-
                 if float(data[ray]) != 2.0:
                     if abs(float(data[ray]) - dist) <= 0.07:
                         vals[i,j] -= 2.2
@@ -51,10 +50,9 @@ def updateMap(x, y, theta, data, count):
                         vals[i,j] += 2.2
                 else:
                     vals[i,j] += 2.2
-                    if i == 40 and j == 80:
-                        print(count, ray)
-                    #     bug = [np.rad2deg(x) for x in rays]
-                    #     print(ray, data[ray], bug[ray], np.rad2deg(theta))
+                    if i == 67 and j == 87:
+                        bug = [np.rad2deg(x) for x in rays]
+                        print(ray, data[ray], bug[ray], np.rad2deg(theta), count)
                            
 
 
@@ -67,8 +65,11 @@ with open('OGM_Dataset.txt', 'r') as file:
         y = float(y)
         theta = float(theta)
         data = data[3:]
-        # if count %50 == 0:
-        updateMap(x,y,theta,data, count)
+        nums = [abs(float(x)) for x in data]
+        # if min(nums) < min_val:
+        #     min_val = min(nums)
+        if count == 3500:
+            updateMap(x,y,theta,data, count)
         count += 1
 
 
