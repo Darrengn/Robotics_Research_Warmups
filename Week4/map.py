@@ -52,7 +52,7 @@ def updateMap(x, y, theta, data, count):
                     vals[i,j] += 2.2
                     if i == 67 and j == 87:
                         bug = [np.rad2deg(x) for x in rays]
-                        print(ray, data[ray], bug[ray], np.rad2deg(theta), count)
+                        # print(ray, data[ray], bug[ray], np.rad2deg(theta), count)
                            
 
 
@@ -68,9 +68,11 @@ with open('OGM_Dataset.txt', 'r') as file:
         nums = [abs(float(x)) for x in data]
         # if min(nums) < min_val:
         #     min_val = min(nums)
-        if count == 3500:
-            updateMap(x,y,theta,data, count)
+        # if count == 3500:
+        updateMap(x,y,theta,data, count)
         count += 1
+
+
 
 
 for i in range(100):
@@ -79,6 +81,8 @@ for i in range(100):
             vals[i,j] = 1
         else:
             vals[i,j] = 1 - 1/(1 + math.exp(vals[i,j]))
+
+np.savetxt('gen_map.txt', vals, delimiter=',')
 
 plt.imshow(vals,cmap='gray', vmin=0, vmax=1)
 plt.show()
