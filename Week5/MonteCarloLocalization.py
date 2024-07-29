@@ -29,13 +29,10 @@ with open('gen_map.txt', 'r') as file:
 grid_map = np.array(grid_map)
 
 
-
-
-
 #TODO This is temporary until odometry data is recieved
 def motion_model(input, state):
-    x_noise = np.random.normal(loc=0.0, scale=0.1)
-    y_noise = np.random.normal(loc=0.0, scale=0.1)
+    x_noise = np.random.normal(loc=0.0, scale=0.05)
+    y_noise = np.random.normal(loc=0.0, scale=0.05)
     theta_noise = np.random.normal(loc=0.0, scale=np.pi/100)
     return state[0] + input[0] + x_noise, state[1] + input[1] + y_noise, safe_ang_add(safe_ang_add(state[2], input[2]),theta_noise)
 
@@ -55,7 +52,7 @@ def measure_model(data, state):
             if grid_map[min(x_coord,99),min(y_coord,99)] <= 0.5:
                 expected = i*0.1
                 break
-        noise = np.random.normal(loc=0.0, scale=0.05)
+        noise = np.random.normal(loc=0.0, scale=0.1)
         err += abs(data[i] + noise - expected)
     # if err <= 0.2:
     #     weight = 5
@@ -70,6 +67,14 @@ def mcl(prev_states, data, input, num_particles = 1000):
     weights = []
     for i in range(num_particles):
         p = motion_model(input ,prev_states[i])
+        w = measure_model(data, p)
+        particles.append(p)
+        weights.append(w)
+    for i in range(0):
+        x_pos = np.random.uniform(-5, 5)
+        y_pos = np.random.uniform(-5, 5)
+        theta = np.random.uniform(-np.pi, np.pi)
+        p = motion_model(input ,(x_pos,y_pos,theta))
         w = measure_model(data, p)
         particles.append(p)
         weights.append(w)
@@ -105,13 +110,25 @@ with open('OGM_Dataset.txt', 'r') as file:
         if count % 50 == 0:
             plt.imshow(grid_map,cmap='gray', vmin=0, vmax=1)
 
+            i_sum = 0
+            j_sum = 0
+            
+
             for i,j,t in prev_pose_est:
                 x_plt, y_plt = coord_to_plt(i,j)
-                plt.scatter(x_plt,y_plt,color='red',s=1)
-            
+                i_sum += i
+                j_sum += j
+                # print(i,j)
+                plt.scatter(y_plt,x_plt,color='red',s=1)
+            i_sum /= num_part
+            j_sum /= num_part
+            print("error: ",((i_sum - prev_pose_real[0])**2 + (j_sum - prev_pose_real[1])**2)**0.5)
+            x_plt, y_plt = coord_to_plt(i_sum,j_sum)
+            plt.scatter(y_plt,x_plt,color='green',s=10)
+
             x_plt,y_plt = coord_to_plt(prev_pose_real[0],prev_pose_real[1])
-            plt.scatter(x_plt,y_plt,color='blue',s=10)
+            plt.scatter(y_plt,x_plt,color='blue',s=10)
             plt.show()
-        print(count)
+        # print(count)
         count += 1
     

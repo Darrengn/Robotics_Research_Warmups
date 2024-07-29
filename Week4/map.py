@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-
+import sys
 
 vals = np.zeros((100,100))
 
@@ -13,6 +13,12 @@ def calcAngle(tar, theta):
         if tar < 0:
             err_ang = -err_ang
     return err_ang
+
+def plt_to_coord(x_ind:int, y_ind:int):
+    return x_ind*0.1 - 5, y_ind*0.1 - 5
+
+def coord_to_plt(x_pos, y_pos):
+    return int(x_pos/0.1 + 5/0.1), int(y_pos/0.1 + 5/0.1)
 
 def checkAng(theta, ang_to_cell):
     if theta > np.pi/4*3 or theta < -np.pi/4*3:
@@ -53,8 +59,40 @@ def updateMap(x, y, theta, data, count):
                     if i == 67 and j == 87:
                         bug = [np.rad2deg(x) for x in rays]
                         # print(ray, data[ray], bug[ray], np.rad2deg(theta), count)
-                           
-
+"""
+    Uses ray tracing
+"""                          
+def updateMap2(x,y,theta,data, count):
+    for i in range(len(data)):
+        ray_ang = calcAngle(theta, np.pi/4 - i*np.pi/100)
+        x_dir = 0.1*np.cos(ray_ang)
+        y_dir = 0.1*np.sin(ray_ang)
+        cur_x = x
+        cur_y = y
+        obs_x = float(data[i])*np.cos(ray_ang) + x
+        obs_y = float(data[i])*np.sin(ray_ang) + y
+        
+        if float(data[i]) < 2.0:
+            x_ind, y_ind = coord_to_plt(obs_x,obs_y)
+            vals[x_ind,y_ind] -= 2.2
+            if x_ind == 40 and y_ind == 20:
+                print(data[i], obs_x, obs_y, x, y, np.rad2deg(theta), np.rad2deg(ray_ang))
+            while abs(cur_x - obs_x) >= 0.1 and abs(cur_y - obs_y) >= 0.1:
+                vals[coord_to_plt(cur_x,cur_y)] += 2.2
+                cur_x += x_dir
+                cur_y += y_dir
+        else:
+            vals[coord_to_plt(obs_x,obs_y)] += 2.2
+            while abs(cur_x - obs_x) >= 0.1 and abs(cur_y - obs_y) >= 0.1:
+                vals[coord_to_plt(cur_x,cur_y)] += 2.2
+                cur_x += x_dir
+                cur_y += y_dir
+            # vals[coord_to_plt(obs_x,obs_y)] += 2.2
+            # while abs(cur_x - obs_x) >= 0.1 and abs(cur_y - obs_y) >= 0.1:
+            #     vals[coord_to_plt(cur_x,cur_y)] += 2.2
+            #     print(coord_to_plt(cur_x,cur_y), cur_x, cur_y)
+            #     cur_x += x_dir
+            #     cur_y += y_dir
 
 count = 0
 with open('OGM_Dataset.txt', 'r') as file:
@@ -69,7 +107,7 @@ with open('OGM_Dataset.txt', 'r') as file:
         # if min(nums) < min_val:
         #     min_val = min(nums)
         # if count == 3500:
-        updateMap(x,y,theta,data, count)
+        updateMap2(x,y,theta,data, count)
         count += 1
 
 
